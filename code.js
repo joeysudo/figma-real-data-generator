@@ -17,7 +17,7 @@ figma.on('close', () => {
 async function callGeminiAPI(apiKey, prompt, format, count) {
   try {
     const fullPrompt = format 
-      ? `${prompt}\n\n${count > 1 ? `Generate ${count} items.` : `Generate 1 item.`}\n\nFormat: ${format}\n\nIMPORTANT: You MUST follow the exact format structure provided above. Do not deviate from this format.` 
+      ? `${prompt}\n\n${count > 1 ? `Generate ${count} items.` : `Generate 1 item.`}\n\nFormat Template: ${format}\n\nCRITICAL INSTRUCTIONS:\n1. You MUST follow the EXACT format template provided above.\n2. DO NOT add ANY additional text, explanations, or content outside the template.\n3. DO NOT include any introductory or concluding text.\n4. ONLY replace placeholders like [NAME], [DESCRIPTION], etc. with generated content.\n5. Maintain ALL line breaks, spacing, and punctuation exactly as shown in the template.\n6. Each item must strictly follow the template format with no deviations.\n7. Your entire response must be ONLY the filled-in templates, nothing else.` 
       : `${prompt}\n\nGenerate ${count} items.`;
     
     const response = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
@@ -32,7 +32,7 @@ async function callGeminiAPI(apiKey, prompt, format, count) {
           }]
         }],
         generationConfig: {
-          temperature: 0.7,
+          temperature: format ? 0.2 : 0.7,
           topK: 40,
           topP: 0.95,
           maxOutputTokens: 1024,
@@ -76,6 +76,14 @@ async function callGeminiAPI(apiKey, prompt, format, count) {
     
     // Extract the generated text from the response
     const generatedText = data.candidates[0].content.parts[0].text;
+    
+    // If a format was provided, ensure the response strictly follows it
+    if (format) {
+      // Clean up the response to remove any introductory or concluding text
+      // that the AI might have added despite our instructions
+      return cleanResponseToMatchFormat(generatedText, format, count);
+    }
+    
     return generatedText;
   } catch (error) {
     console.error('Error calling Gemini API:', error);
@@ -389,4 +397,61 @@ function generateParagraph(sentences = 3) {
   }
   
   return paragraph.trim();
+}
+
+// Function to clean up the API response to ensure it strictly follows the format
+function cleanResponseToMatchFormat(response, format, count) {
+  // Split the response into lines
+  const responseLines = response.split('\n');
+  const formatLines = format.split('\n');
+  
+  // If we're generating multiple items, we need to identify where each item starts and ends
+  if (count > 1) {
+    // Look for patterns that match the beginning of the format template
+    // This is a simplified approach - we're looking for the first line of the format
+    // in each item of the response
+    const firstFormatLine = formatLines[0].trim();
+    
+    // Find all occurrences of lines that match or start with the first line of the format
+    const itemStartIndices = [];
+    
+    responseLines.forEach((line, index) => {
+      // Check if this line matches or starts with the first line of the format
+      // We use a relaxed matching to account for the AI replacing placeholders
+      if (line.trim() && (
+          line.includes(firstFormatLine) || 
+          firstFormatLine.includes('[') && line.includes(firstFormatLine.split('[')[0])
+      )) {
+        itemStartIndices.push(index);
+      }
+    });
+    
+    // If we found potential item starts
+    if (itemStartIndices.length > 0) {
+      // Extract each item based on the identified start indices
+      let cleanedResponse = '';
+      
+      for (let i = 0; i < itemStartIndices.length; i++) {
+        const startIdx = itemStartIndices[i];
+        const endIdx = (i < itemStartIndices.length - 1) ? 
+                        itemStartIndices[i + 1] : 
+                        responseLines.length;
+        
+        // Extract this item's lines
+        const itemLines = responseLines.slice(startIdx, endIdx);
+        
+        // Add to the cleaned response
+        cleanedResponse += itemLines.join('\n') + '\n\n';
+      }
+      
+      return cleanedResponse.trim();
+    }
+  }
+  
+  // If we couldn't identify multiple items or only generating one item,
+  // just return the response as is, but trim any leading/trailing lines
+  // that don't seem to be part of the format
+  return responseLines
+    .filter(line => line.trim()) // Remove empty lines
+    .join('\n');
 }

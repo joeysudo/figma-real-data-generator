@@ -416,6 +416,8 @@
             <label for="saveApiKey" style="display: inline; font-weight: normal;">Save API key in browser storage</label>
           </p>
           
+          <button id="saveApiKeyBtn" style="margin-top: 12px;">Save API Key</button>
+          
           <div class="api-instructions">
             <strong>How to get a Gemini API key:</strong>
             <ol>
@@ -444,23 +446,10 @@
         <div class="form-group">
           <label for="aiFormat">
             Format/Structure Template (AI will follow this exactly)
-            <div class="tooltip">
-              <span class="info-icon">?</span>
-              <span class="tooltip-text">
-                <strong>Format Examples:</strong><br>
-                <code style="display: block; margin-top: 5px; white-space: pre;">Product: [NAME]
-Price: $[PRICE]
-Description: [DESC]</code>
-                <br>
-                <code style="display: block; white-space: pre;">[NUMBER]. [ITEM] - [DESCRIPTION]</code>
-                <br>
-                The AI will replace placeholders like [NAME] with generated content while keeping the exact structure.
-              </span>
-            </div>
           </label>
-          <textarea id="aiFormat" class="ai-textarea" placeholder="Example: Product Name: [NAME]\nTagline: [TAGLINE]\nPrice: $[PRICE]\n\nThe AI will replace the placeholders and follow this exact structure."></textarea>
-          <div style="font-size: 12px; color: #666; margin-top: 4px;">
-            If provided, the AI will strictly follow this format. Leave empty for free-form output.
+          <textarea id="aiFormat" class="ai-textarea" placeholder="Example: Cherry Blossom 36mm Blue Mother Of Pearl Dial Leather Strap"></textarea>
+          <div id="formatIndicator" class="hidden" style="font-size: 12px; color: #18A0FB; margin-top: 4px; padding: 4px; background-color: #e3f2fd; border-radius: 4px; border-left: 3px solid #18A0FB;">
+            <strong>✓ Template Mode:</strong> AI will ONLY output content matching this exact template structure.
           </div>
         </div>
         
@@ -522,6 +511,8 @@ Description: [DESC]</code>
       if (apiKeyInput.value.trim()) {
         apiKeySection.classList.add('hidden');
         apiKeyCollapsed.classList.remove('hidden');
+        // Hide the API Key Required banner
+        document.querySelector('.api-key-notice').classList.add('hidden');
       }
     }
     
@@ -529,11 +520,44 @@ Description: [DESC]</code>
     function expandApiKeySection() {
       apiKeySection.classList.remove('hidden');
       apiKeyCollapsed.classList.add('hidden');
+      // Add highlight animation
+      apiKeySection.classList.add('highlight-box');
+      // Show the API Key Required banner
+      document.querySelector('.api-key-notice').classList.remove('hidden');
       apiKeyInput.focus();
     }
     
     // Edit API key button click handler
     editApiKeyButton.addEventListener('click', expandApiKeySection);
+    
+    // Save API Key button click handler
+    document.getElementById('saveApiKeyBtn').addEventListener('click', function() {
+      const apiKey = apiKeyInput.value.trim();
+      
+      if (!apiKey) {
+        apiKeyError.classList.add('visible');
+        return;
+      }
+      
+      // Save API key if checkbox is checked
+      if (saveApiKeyCheckbox.checked) {
+        parent.postMessage({ 
+          pluginMessage: { 
+            type: 'save-api-key', 
+            apiKey: apiKey 
+          } 
+        }, '*');
+      }
+      
+      // Remove highlight animation from API key section
+      apiKeySection.classList.remove('highlight-box');
+      
+      // Collapse the API key section and hide the banner
+      collapseApiKeySection();
+      
+      // Focus on the prompt textarea
+      document.getElementById('aiPrompt').focus();
+    });
     
     // Focus on API key input when the page loads
     window.addEventListener('load', function() {
@@ -545,6 +569,13 @@ Description: [DESC]</code>
       } else {
         // If API key is already set, collapse the section
         collapseApiKeySection();
+      }
+      
+      // Check if format is already entered and show indicator
+      const formatInput = document.getElementById('aiFormat');
+      const formatIndicator = document.getElementById('formatIndicator');
+      if (formatInput.value.trim()) {
+        formatIndicator.classList.remove('hidden');
       }
     });
     
@@ -729,11 +760,13 @@ Description: [DESC]</code>
       }
       
       // Reset preview area
-      document.getElementById('aiPreview').textContent = 'Generating...';
+      document.getElementById('aiPreview').textContent = format 
+        ? 'Generating content strictly following your exact format template only...' 
+        : 'Generating...';
       
       // Update loading message based on format
       document.getElementById('loadingMessage').textContent = format 
-        ? 'Generating content with AI (following your exact format)...' 
+        ? 'Generating content with AI (strictly following your exact format template only)...' 
         : 'Generating content with AI...';
       
       // Show loading indicator
@@ -823,13 +856,19 @@ Description: [DESC]</code>
         if (message.apiKey) {
           apiKeyInput.value = message.apiKey;
           saveApiKeyCheckbox.checked = true;
+          // Remove highlight animation
+          apiKeySection.classList.remove('highlight-box');
           // Collapse API key section if a valid API key is loaded
           collapseApiKeySection();
+          // Hide the API Key Required banner
+          document.querySelector('.api-key-notice').classList.add('hidden');
         } else {
           apiKeyInput.value = '';
           saveApiKeyCheckbox.checked = false;
           // Expand API key section if no API key is found
           expandApiKeySection();
+          // Show the API Key Required banner
+          document.querySelector('.api-key-notice').classList.remove('hidden');
         }
       }
     };
@@ -847,6 +886,28 @@ Description: [DESC]</code>
     window.addEventListener('unload', function() {
       // Clean up event listeners
       window.onmessage = null;
+    });
+    
+    // Add event listener to show format indicator when format is entered
+    document.getElementById('aiFormat').addEventListener('input', function() {
+      const formatIndicator = document.getElementById('formatIndicator');
+      if (this.value.trim()) {
+        formatIndicator.classList.remove('hidden');
+      } else {
+        formatIndicator.classList.add('hidden');
+      }
+    });
+    
+    // Add event listener for the Insert Example button
+    document.getElementById('insertFormatExample').addEventListener('click', function() {
+      const formatInput = document.getElementById('aiFormat');
+      formatInput.value = 'Product: [NAME]\nPrice: $[PRICE]\nDescription: [DESC]';
+      
+      // Show the format indicator
+      document.getElementById('formatIndicator').classList.remove('hidden');
+      
+      // Focus on the format input
+      formatInput.focus();
     });
   </script>
 </body>

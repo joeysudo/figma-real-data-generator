@@ -1,10 +1,11 @@
 {
   "name": "Real Data Generator",
-  "id": "real-data-generator",
+  "id": "1482000003751625330",
   "api": "1.0.0",
   "main": "code.js",
   "ui": "ui.html",
   "editorType": ["figma"],
+  "documentAccess": "dynamic-page",
   "networkAccess": {
     "allowedDomains": ["https://generativelanguage.googleapis.com"]
   },
