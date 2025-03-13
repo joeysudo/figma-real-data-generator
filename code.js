@@ -4,6 +4,51 @@
 // This shows the HTML page in "ui.html".
 figma.showUI(__html__, { width: 320, height: 480 });
 
+// Gemini API configuration
+const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent";
+
+// Function to call Gemini API
+async function callGeminiAPI(apiKey, prompt, format, count) {
+  try {
+    const fullPrompt = format 
+      ? `${prompt}\n\nFormat: ${format}\n\nGenerate ${count} items.` 
+      : `${prompt}\n\nGenerate ${count} items.`;
+    
+    const response = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        contents: [{
+          parts: [{
+            text: fullPrompt
+          }]
+        }],
+        generationConfig: {
+          temperature: 0.7,
+          topK: 40,
+          topP: 0.95,
+          maxOutputTokens: 1024,
+        }
+      })
+    });
+    
+    const data = await response.json();
+    
+    if (data.error) {
+      throw new Error(data.error.message || 'Error calling Gemini API');
+    }
+    
+    // Extract the generated text from the response
+    const generatedText = data.candidates[0].content.parts[0].text;
+    return generatedText;
+  } catch (error) {
+    console.error('Error calling Gemini API:', error);
+    throw error;
+  }
+}
+
 // Called when a menu option is selected
 figma.on("run", ({ command }) => {
   if (command === "about") {
@@ -133,6 +178,30 @@ figma.ui.onmessage = async (msg) => {
     }
     
     figma.notify(`Applied ${dataType} data to ${Math.min(selection.length, dataItems.length)} layers`);
+  }
+  
+  // Handle AI content generation
+  if (msg.type === 'generate-ai-content') {
+    const { apiKey, prompt, format, count } = msg;
+    
+    try {
+      // Call Gemini API to generate content
+      const generatedContent = await callGeminiAPI(apiKey, prompt, format, count);
+      
+      // Send the generated content back to the UI
+      figma.ui.postMessage({
+        type: 'ai-content-generated',
+        content: generatedContent
+      });
+    } catch (error) {
+      // Send error message back to the UI
+      figma.ui.postMessage({
+        type: 'ai-content-generated',
+        content: `Error generating content: ${error.message}`
+      });
+      
+      figma.notify('Error generating AI content. Please try again.');
+    }
   }
 };
 
