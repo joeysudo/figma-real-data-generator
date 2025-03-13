@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Real Data Generator</title>
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      margin: 0;
+      padding: 16px;
+      color: #333;
+      background-color: #f5f5f5;
+      font-size: 14px;
+    }
+    
+    h2 {
+      margin-top: 0;
+      margin-bottom: 16px;
+      font-size: 18px;
+      font-weight: 600;
+      color: #333;
+    }
+    
+    .container {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    
+    .section {
+      background-color: white;
+      border-radius: 8px;
+      padding: 16px;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    }
+    
+    .form-group {
+      margin-bottom: 12px;
+    }
+    
+    label {
+      display: block;
+      margin-bottom: 6px;
+      font-weight: 500;
+    }
+    
+    select, input {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 14px;
+      box-sizing: border-box;
+    }
+    
+    .row {
+      display: flex;
+      gap: 8px;
+    }
+    
+    .row > div {
+      flex: 1;
+    }
+    
+    button {
+      background-color: #18A0FB;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      padding: 8px 16px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background-color 0.2s;
+      width: 100%;
+    }
+    
+    button:hover {
+      background-color: #0D8DE3;
+    }
+    
+    button.secondary {
+      background-color: #E5E5E5;
+      color: #333;
+    }
+    
+    button.secondary:hover {
+      background-color: #D5D5D5;
+    }
+    
+    .footer {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 8px;
+    }
+    
+    .hidden {
+      display: none;
+    }
+    
+    .tabs {
+      display: flex;
+      margin-bottom: 16px;
+      border-bottom: 1px solid #ddd;
+    }
+    
+    .tab {
+      padding: 8px 16px;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+    }
+    
+    .tab.active {
+      border-bottom: 2px solid #18A0FB;
+      font-weight: 500;
+    }
+    
+    .tab-content {
+      display: none;
+    }
+    
+    .tab-content.active {
+      display: block;
+    }
+    
+    .bulk-textarea {
+      width: 100%;
+      height: 100px;
+      margin-bottom: 12px;
+      padding: 8px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 14px;
+      resize: vertical;
+      box-sizing: border-box;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Real Data Generator</h2>
+    
+    <div class="tabs">
+      <div class="tab active" data-tab="single">Single Data</div>
+      <div class="tab" data-tab="bulk">Bulk Data</div>
+    </div>
+    
+    <div id="single-tab" class="tab-content active">
+      <div class="section">
+        <div class="form-group">
+          <label for="dataType">Data Type</label>
+          <select id="dataType">
+            <option value="name">Name</option>
+            <option value="email">Email</option>
+            <option value="phone">Phone Number</option>
+            <option value="address">Address</option>
+            <option value="company">Company</option>
+            <option value="date">Date</option>
+            <option value="number">Number</option>
+            <option value="paragraph">Paragraph</option>
+          </select>
+        </div>
+        
+        <div id="number-options" class="form-group hidden">
+          <div class="row">
+            <div>
+              <label for="minNumber">Min</label>
+              <input type="number" id="minNumber" value="0">
+            </div>
+            <div>
+              <label for="maxNumber">Max</label>
+              <input type="number" id="maxNumber" value="1000">
+            </div>
+          </div>
+        </div>
+        
+        <div id="paragraph-options" class="form-group hidden">
+          <label for="sentences">Number of Sentences</label>
+          <input type="number" id="sentences" value="3" min="1" max="10">
+        </div>
+        
+        <button id="generate">Generate Data</button>
+      </div>
+      
+      <div class="section">
+        <div class="form-group">
+          <label>Preview</label>
+          <div id="preview" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px; min-height: 20px;">
+            Select a data type and click Generate
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div id="bulk-tab" class="tab-content">
+      <div class="section">
+        <div class="form-group">
+          <label for="bulkDataType">Data Type</label>
+          <select id="bulkDataType">
+            <option value="custom">Custom Data (line by line)</option>
+            <option value="names">Names</option>
+            <option value="emails">Emails</option>
+            <option value="phones">Phone Numbers</option>
+            <option value="addresses">Addresses</option>
+            <option value="companies">Companies</option>
+          </select>
+        </div>
+        
+        <div id="custom-data-input" class="form-group">
+          <label for="bulkData">Enter data (one item per line)</label>
+          <textarea id="bulkData" class="bulk-textarea" placeholder="Enter your data here, one item per line"></textarea>
+        </div>
+        
+        <div id="bulk-count" class="form-group hidden">
+          <label for="bulkCount">Number of items to generate</label>
+          <input type="number" id="bulkCount" value="10" min="1" max="100">
+        </div>
+        
+        <button id="generateBulk">Generate Bulk Data</button>
+      </div>
+    </div>
+    
+    <div class="footer">
+      <button id="cancel" class="secondary">Cancel</button>
+    </div>
+  </div>
+
+  <script>
+    // Initialize UI
+    document.getElementById('dataType').addEventListener('change', function() {
+      const dataType = this.value;
+      document.getElementById('number-options').classList.toggle('hidden', dataType !== 'number');
+      document.getElementById('paragraph-options').classList.toggle('hidden', dataType !== 'paragraph');
+    });
+    
+    document.getElementById('bulkDataType').addEventListener('change', function() {
+      const dataType = this.value;
+      document.getElementById('custom-data-input').classList.toggle('hidden', dataType !== 'custom');
+      document.getElementById('bulk-count').classList.toggle('hidden', dataType === 'custom');
+    });
+    
+    // Tab switching
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', function() {
+        // Remove active class from all tabs
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        
+        // Add active class to clicked tab
+        this.classList.add('active');
+        document.getElementById(`${this.dataset.tab}-tab`).classList.add('active');
+      });
+    });
+    
+    // Generate preview data
+    function generatePreviewData(dataType) {
+      switch (dataType) {
+        case 'name':
+          return "John Smith";
+        case 'email':
+          return "john.smith@example.com";
+        case 'phone':
+          return "(555) 123-4567";
+        case 'address':
+          return "1234 Main St, New York, NY 10001";
+        case 'company':
+          return "Global Technologies";
+        case 'date':
+          return "Jan 15, 2023";
+        case 'number':
+          const min = parseInt(document.getElementById('minNumber').value) || 0;
+          const max = parseInt(document.getElementById('maxNumber').value) || 1000;
+          return Math.floor(Math.random() * (max - min + 1) + min).toString();
+        case 'paragraph':
+          const sentences = parseInt(document.getElementById('sentences').value) || 3;
+          return "Lorem ipsum dolor sit amet. ".repeat(sentences);
+        default:
+          return "Sample data";
+      }
+    }
+    
+    // Generate button click handler
+    document.getElementById('generate').addEventListener('click', function() {
+      const dataType = document.getElementById('dataType').value;
+      const preview = document.getElementById('preview');
+      
+      // Show preview
+      preview.textContent = generatePreviewData(dataType);
+      
+      // Send message to plugin code
+      const message = {
+        type: 'generate-data',
+        dataType: dataType
+      };
+      
+      // Add additional parameters based on data type
+      if (dataType === 'number') {
+        message.min = document.getElementById('minNumber').value;
+        message.max = document.getElementById('maxNumber').value;
+      } else if (dataType === 'paragraph') {
+        message.sentences = document.getElementById('sentences').value;
+      }
+      
+      parent.postMessage({ pluginMessage: message }, '*');
+    });
+    
+    // Generate bulk data button click handler
+    document.getElementById('generateBulk').addEventListener('click', function() {
+      const dataType = document.getElementById('bulkDataType').value;
+      let dataItems = [];
+      
+      if (dataType === 'custom') {
+        // Get custom data from textarea
+        const bulkData = document.getElementById('bulkData').value;
+        dataItems = bulkData.split('\n').filter(item => item.trim() !== '');
+      } else {
+        // For predefined types, we'll let the plugin generate the data
+        const count = parseInt(document.getElementById('bulkCount').value) || 10;
+        
+        parent.postMessage({ 
+          pluginMessage: { 
+            type: 'bulk-generate', 
+            dataType: dataType,
+            count: count
+          } 
+        }, '*');
+        
+        return;
+      }
+      
+      if (dataItems.length === 0) {
+        alert('Please enter at least one data item');
+        return;
+      }
+      
+      // Send message to plugin code
+      parent.postMessage({ 
+        pluginMessage: { 
+          type: 'bulk-generate', 
+          dataType: 'custom',
+          dataItems: dataItems
+        } 
+      }, '*');
+    });
+    
+    // Cancel button click handler
+    document.getElementById('cancel').addEventListener('click', function() {
+      parent.postMessage({ pluginMessage: { type: 'cancel' } }, '*');
+    });
+  </script>
+</body>
+</html> 

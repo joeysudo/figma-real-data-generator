@@ -1,0 +1,21 @@
+{
+  "name": "Real Data Generator",
+  "id": "real-data-generator",
+  "api": "1.0.0",
+  "main": "code.js",
+  "ui": "ui.html",
+  "editorType": ["figma"],
+  "menu": [
+    {
+      "name": "Generate Data",
+      "command": "generate"
+    },
+    {
+      "separator": true
+    },
+    {
+      "name": "About",
+      "command": "about"
+    }
+  ]
+} 
