@@ -233,6 +233,71 @@
       visibility: visible;
       opacity: 1;
     }
+    
+    .api-instructions {
+      margin-top: 8px;
+      font-size: 12px;
+      color: #666;
+      line-height: 1.4;
+    }
+    
+    .api-instructions ol {
+      margin: 8px 0 0 0;
+      padding-left: 20px;
+    }
+    
+    .api-instructions li {
+      margin-bottom: 4px;
+    }
+    
+    .error-message {
+      color: #d32f2f;
+      font-size: 13px;
+      margin-top: 4px;
+      display: none;
+    }
+    
+    .error-message.visible {
+      display: block;
+    }
+    
+    .toggle-password {
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: #666;
+      font-size: 14px;
+      padding: 0;
+      width: auto;
+    }
+    
+    .api-key-wrapper {
+      position: relative;
+    }
+    
+    .highlight-box {
+      border: 2px solid #18A0FB;
+      box-shadow: 0 0 8px rgba(24, 160, 251, 0.3);
+      animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(24, 160, 251, 0.4); }
+      70% { box-shadow: 0 0 0 10px rgba(24, 160, 251, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(24, 160, 251, 0); }
+    }
+    
+    .api-key-notice {
+      background-color: #e3f2fd;
+      border-left: 4px solid #18A0FB;
+      padding: 10px;
+      margin-bottom: 16px;
+      border-radius: 4px;
+    }
   </style>
 </head>
 <body>
@@ -240,12 +305,12 @@
     <h2>Real Data Generator</h2>
     
     <div class="tabs">
-      <div class="tab active" data-tab="single">Single Data</div>
+      <div class="tab active" data-tab="ai">AI Generated</div>
+      <div class="tab" data-tab="single">Single Data</div>
       <div class="tab" data-tab="bulk">Bulk Data</div>
-      <div class="tab" data-tab="ai">AI Generated</div>
     </div>
     
-    <div id="single-tab" class="tab-content active">
+    <div id="single-tab" class="tab-content">
       <div class="section">
         <div class="form-group">
           <label for="dataType">Data Type</label>
@@ -321,10 +386,14 @@
     </div>
     
     <!-- AI Generated Tab -->
-    <div id="ai-tab" class="tab-content">
+    <div id="ai-tab" class="tab-content active">
+      <div class="api-key-notice">
+        <strong>⚠️ API Key Required:</strong> To use AI generation, you need to enter your Gemini API key below.
+      </div>
+      
       <div class="section">
         <!-- API Key Input Section -->
-        <div class="api-key-container">
+        <div id="api-key-section" class="api-key-container highlight-box">
           <div class="form-group">
             <label for="geminiApiKey">
               Gemini API Key 
@@ -332,16 +401,39 @@
                 <span class="info-icon">?</span>
                 <span class="tooltip-text">
                   Get your API key from <a href="https://aistudio.google.com/" target="_blank" style="color: #fff; text-decoration: underline;">Google AI Studio</a>. 
-                  Your API key is stored locally in your browser and is never sent to our servers.
+                  This plugin uses Gemini 2.0 Flash for fast, efficient content generation. Your API key is stored locally and is never sent to our servers.
                 </span>
               </div>
             </label>
-            <input type="password" id="geminiApiKey" class="api-key-input" placeholder="Enter your Gemini API key" autocomplete="off">
+            <div class="api-key-wrapper">
+              <input type="password" id="geminiApiKey" class="api-key-input" placeholder="Enter your Gemini API key" autocomplete="off">
+              <button type="button" class="toggle-password" id="togglePassword">Show</button>
+            </div>
+            <div id="apiKeyError" class="error-message">Please enter a valid API key</div>
           </div>
           <p style="margin-top: 8px; font-size: 12px;">
-            <input type="checkbox" id="saveApiKey" style="width: auto; margin-right: 5px;">
+            <input type="checkbox" id="saveApiKey" style="width: auto; margin-right: 5px;" checked>
             <label for="saveApiKey" style="display: inline; font-weight: normal;">Save API key in browser storage</label>
           </p>
+          
+          <div class="api-instructions">
+            <strong>How to get a Gemini API key:</strong>
+            <ol>
+              <li>Go to <a href="https://aistudio.google.com/" target="_blank">Google AI Studio</a></li>
+              <li>Sign in with your Google account</li>
+              <li>Click on "Get API key" in the top right</li>
+              <li>Create a new API key or use an existing one</li>
+              <li>Make sure your API key has access to Gemini 2.0 models</li>
+              <li>Copy the API key and paste it above</li>
+            </ol>
+          </div>
+        </div>
+        
+        <div id="api-key-collapsed" class="form-group hidden">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <label>API Key: <span style="color: #18A0FB; font-family: monospace;">••••••••••••••••</span></label>
+            <button type="button" id="editApiKey" class="secondary" style="width: auto; padding: 4px 8px; margin-left: 10px;">Edit</button>
+          </div>
         </div>
         
         <div class="form-group">
@@ -350,8 +442,26 @@
         </div>
         
         <div class="form-group">
-          <label for="aiFormat">Describe the format/structure (optional)</label>
-          <textarea id="aiFormat" class="ai-textarea" placeholder="Example: Each name should be on a new line and include a short tagline"></textarea>
+          <label for="aiFormat">
+            Format/Structure Template (AI will follow this exactly)
+            <div class="tooltip">
+              <span class="info-icon">?</span>
+              <span class="tooltip-text">
+                <strong>Format Examples:</strong><br>
+                <code style="display: block; margin-top: 5px; white-space: pre;">Product: [NAME]
+Price: $[PRICE]
+Description: [DESC]</code>
+                <br>
+                <code style="display: block; white-space: pre;">[NUMBER]. [ITEM] - [DESCRIPTION]</code>
+                <br>
+                The AI will replace placeholders like [NAME] with generated content while keeping the exact structure.
+              </span>
+            </div>
+          </label>
+          <textarea id="aiFormat" class="ai-textarea" placeholder="Example: Product Name: [NAME]\nTagline: [TAGLINE]\nPrice: $[PRICE]\n\nThe AI will replace the placeholders and follow this exact structure."></textarea>
+          <div style="font-size: 12px; color: #666; margin-top: 4px;">
+            If provided, the AI will strictly follow this format. Leave empty for free-form output.
+          </div>
         </div>
         
         <div class="form-group">
@@ -363,7 +473,7 @@
         
         <div id="aiLoading" class="loading">
           <div class="spinner"></div>
-          <div>Generating content with AI...</div>
+          <div id="loadingMessage">Generating content with AI...</div>
         </div>
       </div>
       
@@ -398,29 +508,97 @@
       document.getElementById('bulk-count').classList.toggle('hidden', dataType === 'custom');
     });
     
-    // API Key Storage
+    // API Key Storage and Visibility Toggle
     const apiKeyInput = document.getElementById('geminiApiKey');
     const saveApiKeyCheckbox = document.getElementById('saveApiKey');
+    const togglePasswordButton = document.getElementById('togglePassword');
+    const apiKeyError = document.getElementById('apiKeyError');
+    const apiKeySection = document.getElementById('api-key-section');
+    const apiKeyCollapsed = document.getElementById('api-key-collapsed');
+    const editApiKeyButton = document.getElementById('editApiKey');
     
-    // Load saved API key if available
-    if (localStorage.getItem('geminiApiKey')) {
-      apiKeyInput.value = localStorage.getItem('geminiApiKey');
-      saveApiKeyCheckbox.checked = true;
+    // Function to collapse API key section
+    function collapseApiKeySection() {
+      if (apiKeyInput.value.trim()) {
+        apiKeySection.classList.add('hidden');
+        apiKeyCollapsed.classList.remove('hidden');
+      }
     }
+    
+    // Function to expand API key section
+    function expandApiKeySection() {
+      apiKeySection.classList.remove('hidden');
+      apiKeyCollapsed.classList.add('hidden');
+      apiKeyInput.focus();
+    }
+    
+    // Edit API key button click handler
+    editApiKeyButton.addEventListener('click', expandApiKeySection);
+    
+    // Focus on API key input when the page loads
+    window.addEventListener('load', function() {
+      // Focus on the API key input if it's empty
+      if (!apiKeyInput.value) {
+        setTimeout(() => {
+          apiKeyInput.focus();
+        }, 500);
+      } else {
+        // If API key is already set, collapse the section
+        collapseApiKeySection();
+      }
+    });
+    
+    // Toggle password visibility
+    togglePasswordButton.addEventListener('click', function() {
+      const type = apiKeyInput.getAttribute('type') === 'password' ? 'text' : 'password';
+      apiKeyInput.setAttribute('type', type);
+      this.textContent = type === 'password' ? 'Show' : 'Hide';
+    });
+    
+    // Request saved API key from plugin code
+    parent.postMessage({ pluginMessage: { type: 'get-api-key' } }, '*');
     
     // Save API key when checkbox is checked
     saveApiKeyCheckbox.addEventListener('change', function() {
       if (this.checked && apiKeyInput.value) {
-        localStorage.setItem('geminiApiKey', apiKeyInput.value);
+        // Send API key to plugin code for storage
+        parent.postMessage({ 
+          pluginMessage: { 
+            type: 'save-api-key', 
+            apiKey: apiKeyInput.value 
+          } 
+        }, '*');
       } else {
-        localStorage.removeItem('geminiApiKey');
+        // Tell plugin code to remove saved API key
+        parent.postMessage({ 
+          pluginMessage: { 
+            type: 'remove-api-key'
+          } 
+        }, '*');
       }
     });
     
     // Save API key when input changes and checkbox is checked
     apiKeyInput.addEventListener('input', function() {
       if (saveApiKeyCheckbox.checked) {
-        localStorage.setItem('geminiApiKey', this.value);
+        // Send API key to plugin code for storage
+        parent.postMessage({ 
+          pluginMessage: { 
+            type: 'save-api-key', 
+            apiKey: this.value 
+          } 
+        }, '*');
+      }
+      
+      // Hide error message when user starts typing
+      apiKeyError.classList.remove('visible');
+    });
+    
+    // Handle API key input when user presses Enter
+    apiKeyInput.addEventListener('keypress', function(e) {
+      if (e.key === 'Enter' && this.value.trim()) {
+        collapseApiKeySection();
+        document.getElementById('aiPrompt').focus();
       }
     });
     
@@ -536,18 +714,38 @@
       const count = parseInt(document.getElementById('aiCount').value) || 5;
       
       if (!apiKey) {
-        alert('Please enter your Gemini API key');
+        apiKeyError.classList.add('visible');
+        expandApiKeySection();
+        apiKeyInput.focus();
         return;
       }
+      
+      // Collapse API key section if it's not already collapsed
+      collapseApiKeySection();
       
       if (!prompt) {
         alert('Please describe what content you need');
         return;
       }
       
+      // Reset preview area
+      document.getElementById('aiPreview').textContent = 'Generating...';
+      
+      // Update loading message based on format
+      document.getElementById('loadingMessage').textContent = format 
+        ? 'Generating content with AI (following your exact format)...' 
+        : 'Generating content with AI...';
+      
       // Show loading indicator
       document.getElementById('aiLoading').classList.add('active');
       document.getElementById('generateAI').disabled = true;
+      
+      // Add a timeout to handle cases where the API call might hang
+      const timeoutId = setTimeout(() => {
+        document.getElementById('aiLoading').classList.remove('active');
+        document.getElementById('generateAI').disabled = false;
+        document.getElementById('aiPreview').textContent = 'Error generating content: Request timed out. Please try again.';
+      }, 30000); // 30 second timeout
       
       // Send message to plugin code
       parent.postMessage({ 
@@ -556,7 +754,8 @@
           apiKey: apiKey,
           prompt: prompt,
           format: format,
-          count: count
+          count: count,
+          timeoutId: timeoutId // Pass the timeout ID to be cleared on success
         } 
       }, '*');
     });
@@ -565,13 +764,24 @@
     document.getElementById('applyAIContent').addEventListener('click', function() {
       const aiContent = document.getElementById('aiPreview').textContent;
       
-      if (aiContent === 'Describe what content you need and click Generate with AI') {
+      if (aiContent === 'Describe what content you need and click Generate with AI' || 
+          aiContent === 'Generating...') {
         alert('Please generate AI content first');
+        return;
+      }
+      
+      if (aiContent.startsWith('Error generating content:')) {
+        alert('Please fix the error and generate content again');
         return;
       }
       
       // Split content by new lines to get individual items
       const dataItems = aiContent.split('\n').filter(item => item.trim() !== '');
+      
+      if (dataItems.length === 0) {
+        alert('No content to apply. Please generate content first.');
+        return;
+      }
       
       // Send message to plugin code
       parent.postMessage({ 
@@ -588,18 +798,55 @@
       const message = event.data.pluginMessage;
       
       if (message && message.type === 'ai-content-generated') {
+        // Clear the timeout if it exists
+        if (message.timeoutId) {
+          clearTimeout(message.timeoutId);
+        }
+        
         // Hide loading indicator
         document.getElementById('aiLoading').classList.remove('active');
         document.getElementById('generateAI').disabled = false;
         
         // Update preview with generated content
         document.getElementById('aiPreview').textContent = message.content;
+        
+        // If there was an error, show it in red
+        if (message.content && message.content.startsWith('Error generating content:')) {
+          document.getElementById('aiPreview').style.color = '#d32f2f';
+        } else {
+          document.getElementById('aiPreview').style.color = '';
+        }
+      }
+      
+      // Handle saved API key from plugin code
+      if (message && message.type === 'saved-api-key') {
+        if (message.apiKey) {
+          apiKeyInput.value = message.apiKey;
+          saveApiKeyCheckbox.checked = true;
+          // Collapse API key section if a valid API key is loaded
+          collapseApiKeySection();
+        } else {
+          apiKeyInput.value = '';
+          saveApiKeyCheckbox.checked = false;
+          // Expand API key section if no API key is found
+          expandApiKeySection();
+        }
       }
     };
     
     // Cancel button click handler
     document.getElementById('cancel').addEventListener('click', function() {
+      // Clean up event listeners before closing
+      window.onmessage = null;
+      
+      // Send cancel message to plugin code
       parent.postMessage({ pluginMessage: { type: 'cancel' } }, '*');
+    });
+    
+    // Handle plugin cleanup on unload
+    window.addEventListener('unload', function() {
+      // Clean up event listeners
+      window.onmessage = null;
     });
   </script>
 </body>

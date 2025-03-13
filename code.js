@@ -2,16 +2,22 @@
 // It can populate text layers with names, addresses, phone numbers, etc.
 
 // This shows the HTML page in "ui.html".
-figma.showUI(__html__, { width: 320, height: 480 });
+figma.showUI(__html__, { width: 320, height: 600 });
 
 // Gemini API configuration
-const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent";
+const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
+
+// Handle plugin cleanup when closed
+figma.on('close', () => {
+  // Clean up any pending operations or listeners
+  figma.ui.onmessage = () => {};
+});
 
 // Function to call Gemini API
 async function callGeminiAPI(apiKey, prompt, format, count) {
   try {
     const fullPrompt = format 
-      ? `${prompt}\n\nFormat: ${format}\n\nGenerate ${count} items.` 
+      ? `${prompt}\n\n${count > 1 ? `Generate ${count} items.` : `Generate 1 item.`}\n\nFormat: ${format}\n\nIMPORTANT: You MUST follow the exact format structure provided above. Do not deviate from this format.` 
       : `${prompt}\n\nGenerate ${count} items.`;
     
     const response = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
@@ -34,10 +40,38 @@ async function callGeminiAPI(apiKey, prompt, format, count) {
       })
     });
     
+    // Check if plugin is still running before proceeding
+    if (!figma.editorType) {
+      throw new Error('Plugin closed during API call');
+    }
+    
     const data = await response.json();
     
     if (data.error) {
-      throw new Error(data.error.message || 'Error calling Gemini API');
+      // Provide more specific error messages based on common error codes
+      if (data.error.code === 400) {
+        throw new Error('Invalid request. Please check your API key and try again.');
+      } else if (data.error.code === 401) {
+        throw new Error('API key is invalid or expired. Please check your API key.');
+      } else if (data.error.code === 403) {
+        throw new Error('Access denied. Your API key may not have permission to use this model.');
+      } else if (data.error.code === 404) {
+        throw new Error('The specified model was not found. Try using a different model.');
+      } else if (data.error.code === 429) {
+        throw new Error('Quota exceeded or rate limit reached. Please try again later.');
+      } else {
+        throw new Error(data.error.message || 'Error calling Gemini API');
+      }
+    }
+    
+    // Check if candidates array exists and has content
+    if (!data.candidates || data.candidates.length === 0) {
+      throw new Error('No content was generated. Please try a different prompt.');
+    }
+    
+    // Check if content and parts exist
+    if (!data.candidates[0].content || !data.candidates[0].content.parts || data.candidates[0].content.parts.length === 0) {
+      throw new Error('Generated content is empty. Please try a different prompt.');
     }
     
     // Extract the generated text from the response
@@ -45,6 +79,12 @@ async function callGeminiAPI(apiKey, prompt, format, count) {
     return generatedText;
   } catch (error) {
     console.error('Error calling Gemini API:', error);
+    
+    // Handle network errors
+    if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
+      throw new Error('Network error. Please check your internet connection.');
+    }
+    
     throw error;
   }
 }
@@ -59,7 +99,46 @@ figma.on("run", ({ command }) => {
 // Listen for messages from the UI
 figma.ui.onmessage = async (msg) => {
   if (msg.type === 'cancel') {
-    figma.closePlugin();
+    // Ensure proper cleanup before closing
+    figma.ui.onmessage = () => {};
+    setTimeout(() => figma.closePlugin(), 100);
+    return;
+  }
+  
+  // Handle API key storage
+  if (msg.type === 'save-api-key') {
+    try {
+      await figma.clientStorage.setAsync('geminiApiKey', msg.apiKey);
+    } catch (error) {
+      console.error('Error saving API key:', error);
+    }
+    return;
+  }
+  
+  if (msg.type === 'remove-api-key') {
+    try {
+      await figma.clientStorage.deleteAsync('geminiApiKey');
+    } catch (error) {
+      console.error('Error removing API key:', error);
+    }
+    return;
+  }
+  
+  if (msg.type === 'get-api-key') {
+    try {
+      const apiKey = await figma.clientStorage.getAsync('geminiApiKey');
+      figma.ui.postMessage({
+        type: 'saved-api-key',
+        apiKey: apiKey || ''
+      });
+    } catch (error) {
+      console.error('Error getting API key:', error);
+      figma.ui.postMessage({
+        type: 'saved-api-key',
+        apiKey: ''
+      });
+    }
+    return;
   }
   
   if (msg.type === 'generate-data') {
@@ -182,25 +261,36 @@ figma.ui.onmessage = async (msg) => {
   
   // Handle AI content generation
   if (msg.type === 'generate-ai-content') {
-    const { apiKey, prompt, format, count } = msg;
+    const { apiKey, prompt, format, count, timeoutId } = msg;
     
     try {
+      // Validate API key format
+      if (!apiKey || apiKey.trim() === '') {
+        throw new Error('Please enter a valid API key');
+      }
+      
       // Call Gemini API to generate content
       const generatedContent = await callGeminiAPI(apiKey, prompt, format, count);
       
       // Send the generated content back to the UI
       figma.ui.postMessage({
         type: 'ai-content-generated',
-        content: generatedContent
+        content: generatedContent,
+        timeoutId: timeoutId
       });
+      
+      figma.notify('AI content generated successfully!');
     } catch (error) {
+      console.error('Error in generate-ai-content:', error);
+      
       // Send error message back to the UI
       figma.ui.postMessage({
         type: 'ai-content-generated',
-        content: `Error generating content: ${error.message}`
+        content: `Error generating content: ${error.message}`,
+        timeoutId: timeoutId
       });
       
-      figma.notify('Error generating AI content. Please try again.');
+      figma.notify('Error generating AI content. Please try again.', { error: true });
     }
   }
 };
@@ -299,4 +389,4 @@ function generateParagraph(sentences = 3) {
   }
   
   return paragraph.trim();
-} 
+}

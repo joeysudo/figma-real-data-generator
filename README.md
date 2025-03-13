@@ -96,4 +96,4 @@ Created by [Your Name]
 
 ---
 
-If you have any suggestions or encounter any issues, please submit them on the GitHub repository or contact the author. 
+If you have any suggestions or encounter any issues, please submit them on the GitHub repository or contact the author.
